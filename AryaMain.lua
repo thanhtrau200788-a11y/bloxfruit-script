@@ -69,7 +69,7 @@ local KeyCategories = {
 }
 
 local Config = {
-    LockedHWID = (getgenv().tmconfig and getgenv().tmconfig.key2hiw),
+    LockedHWID = (getgenv().tmconfig and getgenv().tmconfig.key2hi),
 
     MyKey =  (getgenv().tmconfig and getgenv().tmconfig.key) or "key-mac-dinh",
     MaxTabs = (getgenv().tmconfig and getgenv().tmconfig.max_tabs) or 40,
