@@ -331,7 +331,12 @@ end
 -- =========================
 -- RUN BANANAHUB
 -- =========================
-getgenv().Key = "e9a69dd3337d46a4551c49a1" 
+if getgenv().tmconfig and getgenv().tmconfig.chuoikey then
+    getgenv().Key = getgenv().tmconfig.chuoikey
+else
+    getgenv().Key = "" -- Key dự phòng nếu quên điền ở Executor
+end
+	
 getgenv().Config = {
     ["Auto Join Dungeon"] = false,
     ["Auto Fire Shoot Heart Leviathan"] = false,
