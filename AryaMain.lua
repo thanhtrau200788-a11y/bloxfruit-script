@@ -1,40 +1,49 @@
+task.wait(2)
 repeat task.wait() until game:IsLoaded()
 
 print("⏳ Game đã load xong. Đang chờ thêm 10 giây để ổn định tài nguyên...")
-task.wait(10) 
+task.wait(10)
 print("🚀 Bắt đầu chạy Script!")
 -- ==========================================
 
-local Players = game:GetService("Players")
+local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
-local plr = Players.LocalPlayer
-repeat task.wait() until plr
+local TweenService      = game:GetService("TweenService")
+local RunService        = game:GetService("RunService")
 
+-- Đảm bảo LocalPlayer đã sẵn sàng
+local LocalPlayer = Players.LocalPlayer
+while not LocalPlayer do
+    LocalPlayer = Players.LocalPlayer
+    task.wait(0.5)
+end
+local plr = LocalPlayer
+
+-- ==========================================
+-- JOIN MARINES
+-- ==========================================
 print("⚓ Đang tiến hành vào phe Marine trước...")
 
-local function JoinMarine()
-    pcall(function()
-        if not plr.Team or plr.Team.Name ~= "Marines" then
-            ReplicatedStorage.Remotes.CommF_:InvokeServer("SetTeam", "Marines")
-        end
-    end)
+local targetTeam = "Marines"
+local remote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
+
+while true do
+    if plr.Team == nil or plr.Team.Name ~= targetTeam then
+        pcall(function()
+            remote:InvokeServer("SetTeam", targetTeam)
+        end)
+    else
+        break
+    end
+    task.wait(1)
 end
 
--- Spam lệnh join cho đến khi thực sự vào team
-repeat 
-    JoinMarine()
-    task.wait(3)
-until plr.Team and plr.Team.Name == "Marines"
-
 print("✅ Đã xác nhận: Bạn đang ở phe Marine!")
-task.wait(6) -- Nghỉ 1 nhịp cho game ổn định
+task.wait(2)
 
--- Tọa độ chuẩn của NPC Sharkman Karate
-local npcPos = Vector3.new(-4972.51611328125, 314.8302307128906, -3222.7587890625)
-
--- Hàm kiểm tra Sharkman Karate
+-- ==========================================
+-- KIỂM TRA SHARKMAN KARATE
+-- ==========================================
 local function hasSharkmanKarate()
     -- 1. Kiểm tra trong Folder Data
     local data = plr:FindFirstChild("Data")
@@ -65,63 +74,93 @@ local function hasSharkmanKarate()
     return false
 end
 
-local function tweenTo(pos)
-    local chr = plr.Character or plr.CharacterAdded:Wait()
-    local hrp = chr:WaitForChild("HumanoidRootPart")
-    
-    -- Bật Noclip để không đâm vào tường khi bay
-    local noclipConn
-    noclipConn = RunService.Stepped:Connect(function()
-        if chr then
-            for _, v in pairs(chr:GetChildren()) do
-                if v:IsA("BasePart") then v.CanCollide = false end
+-- ==========================================
+-- HÀM BAY MỚI: safeFly (Chống nước biển + Noclip)
+-- ==========================================
+local noclipConnection
+local speed = 320
+
+local function enableNoclip(character)
+    noclipConnection = RunService.Stepped:Connect(function()
+        if character then
+            for _, part in pairs(character:GetDescendants()) do
+                if part:IsA("BasePart") and part.CanCollide then
+                    part.CanCollide = false
+                end
             end
         end
     end)
-
-    -- SỬA LỖI: Bay thẳng đến pos (độ cao 314) thay vì ép xuống 150
-    local targetPos = pos 
-    local distance = (hrp.Position - targetPos).Magnitude
-    
-    -- Tính toán tốc độ (300 stud/giây)
-    local info = TweenInfo.new(distance/300, Enum.EasingStyle.Linear)
-    local tween = TweenService:Create(hrp, info, {CFrame = CFrame.new(targetPos)})
-    
-    tween:Play()
-    tween.Completed:Wait()
-
-    -- Tắt Noclip sau khi đến nơi
-    if noclipConn then noclipConn:Disconnect() end
-
-    -- GIỮ NHÂN VẬT KHÔNG BỊ RƠI
-    hrp.Velocity = Vector3.zero -- Ngắt lực quán tính
-    
-    -- Tạo bệ đỡ vô hình dưới chân để đứng mua cho chắc
-    local platform = Instance.new("Part")
-    platform.Size = Vector3.new(10, 1, 10)
-    platform.Position = targetPos - Vector3.new(0, 3.5, 0)
-    platform.Anchored = true
-    platform.Transparency = 1 
-    platform.Parent = workspace
-    
-    -- Xóa bệ đỡ sau 10 giây (đủ thời gian mua)
-    game:GetService("Debris"):AddItem(platform, 10)
 end
 
+local function disableNoclip()
+    if noclipConnection then
+        noclipConnection:Disconnect()
+        noclipConnection = nil
+    end
+end
+
+local function safeFly(targetPos)
+    -- Lấy lại character & rootPart tươi mỗi lần bay (tránh stale reference)
+    local character = plr.Character or plr.CharacterAdded:Wait()
+    local rootPart  = character:WaitForChild("HumanoidRootPart")
+
+    enableNoclip(character)
+
+    -- Tạo BodyVelocity giữ nhân vật lơ lửng trong suốt hành trình
+    local bv = Instance.new("BodyVelocity")
+    bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+    bv.Velocity  = Vector3.new(0, 0, 0)
+    bv.Parent    = rootPart
+
+    -- Nếu đang dưới nước (Y < 50), ngoi lên độ cao an toàn trước
+    if rootPart.Position.Y < 50 then
+        local safeHeight = 350
+        local ascendPos  = Vector3.new(rootPart.Position.X, safeHeight, rootPart.Position.Z)
+        local distUp     = (rootPart.Position - ascendPos).Magnitude
+        local timeUp     = distUp / speed
+
+        local tweenUp = TweenService:Create(
+            rootPart,
+            TweenInfo.new(timeUp, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
+            {CFrame = CFrame.new(ascendPos)}
+        )
+        tweenUp:Play()
+        tweenUp.Completed:Wait() -- Chờ ngoi lên xong mới đi tiếp
+    end
+
+    -- Bay đến đích chính
+    local distance  = (rootPart.Position - targetPos).Magnitude
+    local tweenTime = distance / speed
+
+    local tweenMain = TweenService:Create(
+        rootPart,
+        TweenInfo.new(tweenTime, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
+        {CFrame = CFrame.new(targetPos)}
+    )
+    tweenMain:Play()
+    tweenMain.Completed:Wait() -- ✅ FIX: :Wait() thay vì :Connect() → đợi bay xong mới tiếp tục
+
+    -- Dọn dẹp sau khi đến nơi
+    disableNoclip()
+    bv:Destroy()
+end
+
+-- ==========================================
+-- MUA SHARKMAN KARATE NẾU CHƯA CÓ
+-- ==========================================
+local npcPos = Vector3.new(-4972.51611328125, 314.8302307128906, -3222.7587890625)
 
 if hasSharkmanKarate() then
     print("✅ Hệ thống xác nhận: Đã có Sharkman Karate. Khởi động BananaHub ngay...")
 else
     print("❌ Chưa thấy Sharkman Karate. Đang chuẩn bị đi mua...")
-    
-    -- Gọi hàm Tween mới
-    tweenTo(npcPos)
-    
+
+    safeFly(npcPos)
+
     print("📍 Đã đến nơi, bắt đầu spam mua...")
-    
+
     while not hasSharkmanKarate() do
         pcall(function()
-            -- Cố gắng đứng yên tại chỗ
             if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
                 plr.Character.HumanoidRootPart.CFrame = CFrame.new(npcPos)
             end
@@ -129,6 +168,8 @@ else
         end)
         task.wait(2)
     end
+
+    print("✅ Mua Sharkman Karate thành công!")
 end
 
 -- =========================
@@ -139,7 +180,7 @@ if getgenv().tmconfig and getgenv().tmconfig.chuoikey then
 else
     getgenv().Key = "" -- Key dự phòng nếu quên điền ở Executor
 end
-	
+
 getgenv().Config = {
     ["Auto Join Dungeon"] = false,
     ["Auto Fire Shoot Heart Leviathan"] = false,
@@ -195,9 +236,9 @@ getgenv().Config = {
     ["ESP Player"] = false,
     ["Buy Blox Fruit Sniper Shop"] = false,
     ["Select Stats"] = {
-		["Sword"] = true,
-		["Defense"] = true,
-		["Melee"] = true
+        ["Sword"] = true,
+        ["Defense"] = true,
+        ["Melee"] = true
     },
     ["Auto Yoru Mini"] = false,
     ["Auto Trade Bone"] = true,
