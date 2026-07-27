@@ -261,7 +261,7 @@ getgenv().Config = {
         ["C"] = true,
         ["Z"] = true,
         ["V"] = true,
-        ["F"] = true
+        ["F"] = false
     },
     ["Get Fruit In Inventory Low Beli"] = false,
     ["Bring Mob Count"] = 2,
@@ -300,7 +300,7 @@ getgenv().Config = {
     ["Select Skills Melee"] = {
         ["X"] = true,
         ["C"] = true,
-        ["Z"] = true
+        ["Z"] = false
     },
     ["Attack Rip Indra"] = false,
     ["Fly Boat"] = false,
