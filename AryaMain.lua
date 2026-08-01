@@ -300,7 +300,7 @@ getgenv().Config = {
     ["Select Skills Melee"] = {
         ["X"] = true,
         ["C"] = true,
-        ["Z"] = false
+        ["Z"] = true
     },
     ["Attack Rip Indra"] = false,
     ["Fly Boat"] = false,
@@ -332,7 +332,7 @@ task.wait(8)
 local Config = {
     Script1_Enabled = true,  -- Bật/Tắt Script 1 (Auto Sea 3)
     Script2_Enabled = true, -- Bật/Tắt Script 2 (Auto Code/Refund/Stats)
-    Script3_Enabled = false,  -- Bật/Tắt Script 3 (Remove Fruit)
+    Script3_Enabled = true,  -- Bật/Tắt Script 3 (Remove Fruit)
     DelayBetween = 10        -- Thời gian chờ giữa các script (giây)
 }
 
